@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-package:
+    name: Test and package (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-amd64
+            executable: ./dist/lingua
+            artifact: dist/lingua
+          - os: windows-latest
+            platform: windows-amd64
+            executable: .\\dist\\lingua.exe
+            artifact: dist/lingua.exe
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --extra dev --locked
+
+      - name: Run tests
+        run: uv run pytest
+
+      - name: Build Python distributions
+        run: uv build
+
+      - name: Build native executable
+        run: uv run pyinstaller --clean --noconfirm --onefile --name lingua scripts/lingua_entry.py
+
+      - name: Verify executable (Linux)
+        if: runner.os == 'Linux'
+        run: ${{ matrix.executable }} --help
+
+      - name: Verify executable (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ${{ matrix.executable }} --help
+
+      - name: Upload executable for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: lingua-${{ matrix.platform }}-ci
+          path: ${{ matrix.artifact }}
+          if-no-files-found: error
+          retention-days: 7
