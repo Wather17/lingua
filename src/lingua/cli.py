@@ -13,7 +13,7 @@ from .state import StateStore
 from .workflows import evaluate_models, load_and_choose, prepare as prepare_workflow, select_model as select_model_workflow
 
 
-app = typer.Typer(no_args_is_help=True, help="Kindle Clippings → Anki com tradução contextual.")
+app = typer.Typer(no_args_is_help=True, help="Kindle Clippings para Anki com tradução contextual.")
 WORKSPACE_OPTION = typer.Option(Path(".lingua"), "--workspace", "-w", help="Diretório de estado do projeto.")
 
 
@@ -32,7 +32,7 @@ def _client(config: Config) -> OpenRouterClient:
 def _choose(options: list[tuple[str, str, str, int, int]]) -> str:
     typer.echo("Livros encontrados:")
     for index, (key, title, author, total, new) in enumerate(options, start=1):
-        byline = f" — {author}" if author else ""
+        byline = f" - {author}" if author else ""
         typer.echo(f"  {index}. {title}{byline} ({new} novos de {total}) [{key}]")
     selected = typer.prompt("Escolha o número", type=int)
     if selected < 1 or selected > len(options):
@@ -61,16 +61,16 @@ def doctor(
     try:
         config = load_config(workspace)
         StateStore(workspace)
-        typer.echo(f"✓ configuração: modelo {config.model}")
+        typer.echo(f"[OK] configuração: modelo {config.model}")
         if clippings:
             result = parse_file(clippings)
-            typer.echo(f"✓ clippings: {len(result.clippings)} destaques em {len(group_books(result.clippings))} livros")
+            typer.echo(f"[OK] clippings: {len(result.clippings)} destaques em {len(group_books(result.clippings))} livros")
             if result.skipped:
                 typer.echo("  ignorados: " + ", ".join(f"{reason}={count}" for reason, count in result.skipped.items()))
         if check_api:
             with _client(config) as client:
                 client.check_connection()
-            typer.echo("✓ OpenRouter: chave e conexão válidas")
+            typer.echo("[OK] OpenRouter: chave e conexão válida")
     except (ValueError, OSError, OpenRouterError) as error:
         _fail(str(error))
 
@@ -87,7 +87,7 @@ def books(
         for key, items in sorted(group_books(result.clippings).items(), key=lambda pair: pair[1][0].title.casefold()):
             statuses = store.statuses([item.fingerprint for item in items])
             new = sum(statuses.get(item.fingerprint) not in {"exported", "rejected"} for item in items)
-            author = f" — {items[0].author}" if items[0].author else ""
+            author = f" - {items[0].author}" if items[0].author else ""
             typer.echo(f"{key}  {items[0].title}{author}  {new} novos / {len(items)} total")
         if result.skipped:
             typer.echo("Ignorados: " + ", ".join(f"{key}={value}" for key, value in result.skipped.items()))
@@ -173,4 +173,3 @@ def select_model_command(
 
 if __name__ == "__main__":
     app()
-
