@@ -8,7 +8,10 @@ from pydantic import BaseModel, Field
 
 
 def normalize_space(value: str) -> str:
-    return re.sub(r"\s+", " ", value).strip()
+    # Alguns Kindles repetem o BOM no início de blocos posteriores do arquivo.
+    # Ele não deve criar títulos, autores ou fingerprints distintos.
+    clean = value.replace("\ufeff", "").replace("\u200b", "")
+    return re.sub(r"\s+", " ", clean).strip()
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,4 +58,3 @@ class TranslationUsage:
     completion_tokens: int = 0
     cost: float = 0.0
     latency_seconds: float = 0.0
-

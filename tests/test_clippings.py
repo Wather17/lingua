@@ -35,3 +35,12 @@ def test_fingerprint_is_stable_across_whitespace() -> None:
     second = parse_text("Book (A)\n- Your Highlight at location 1\n\nHello world\n==========").clippings[0]
     assert first.fingerprint == second.fingerprint
 
+
+def test_internal_bom_does_not_split_the_same_book() -> None:
+    content = (
+        "Book (A)\n- Your Highlight at location 1\n\nFirst highlight.\n==========\n"
+        "\ufeffBook (A)\n- Your Highlight at location 2\n\nSecond highlight.\n=========="
+    )
+    result = parse_text(content)
+    assert len(group_books(result.clippings)) == 1
+    assert result.clippings[1].title == "Book"
