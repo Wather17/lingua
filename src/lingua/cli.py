@@ -4,6 +4,7 @@ from pathlib import Path
 import os
 
 import typer
+from dotenv import load_dotenv
 
 from .clippings import group_books, parse_file
 from .config import Config, load_config, save_config
@@ -12,6 +13,10 @@ from .output import default_named_path, export_anki
 from .state import StateStore
 from .workflows import evaluate_models, load_and_choose, prepare as prepare_workflow, select_model as select_model_workflow
 
+
+# Carrega somente o .env do diretório onde a CLI foi executada. Variáveis já
+# presentes no ambiente têm prioridade e nunca são sobrescritas.
+load_dotenv(Path.cwd() / ".env")
 
 app = typer.Typer(no_args_is_help=True, help="Kindle Clippings para Anki com tradução contextual.")
 WORKSPACE_OPTION = typer.Option(Path(".lingua"), "--workspace", "-w", help="Diretório de estado do projeto.")

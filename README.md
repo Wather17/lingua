@@ -36,6 +36,12 @@ lingua init
 lingua doctor "/caminho/para/My Clippings.txt"
 ```
 
+Como alternativa, copie `.env.example` para `.env` no diretório do projeto e preencha a chave. O `.env` é carregado automaticamente, não sobrescreve uma variável já definida no terminal e está ignorado pelo Git:
+
+```bash
+cp .env.example .env
+```
+
 O `lingua init` cria `.lingua/config.toml` e `.lingua/lingua.db`. A chave não é gravada nesses arquivos.
 
 ## Fluxo diário
