@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "lingua-kindle"
-version = "0.1.0"
+version = "0.2.0"
 description = "Transforma frases estudadas em cartoes enriquecidos para o Anki."
 readme = "README.md"
 requires-python = ">=3.12"

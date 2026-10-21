@@ -18,8 +18,18 @@ As entradas são enviadas ao OpenRouter em pequenos lotes. O arquivo inteiro do 
 É necessário Python 3.12 ou mais recente. Com `uv`:
 
 ```bash
-uv tool install .
+uv tool install lingua-kindle
+lingua --help
 ```
+
+Para atualizar ou remover a instalação global do usuário:
+
+```bash
+uv tool upgrade lingua-kindle
+uv tool uninstall lingua-kindle
+```
+
+Para instalar a versão que está sendo desenvolvida localmente, use `uv tool install .`.
 
 Para desenvolver no repositório:
 
@@ -132,17 +142,21 @@ Use `--workspace` em qualquer comando para guardar a configuração em outro dir
 
 ## Releases para Windows e Linux
 
-Ao enviar uma tag no formato `vX.Y.Z`, o GitHub Actions testa o projeto, gera executáveis nativos para Linux AMD64 e Windows AMD64 e publica ambos na página **Releases**. A tag deve ter a mesma versão de `pyproject.toml`; por exemplo, a versão `0.1.0` exige a tag `v0.1.0`.
+Ao enviar uma tag no formato `vX.Y.Z`, o GitHub Actions testa o projeto, publica o pacote `lingua-kindle` no PyPI, gera executáveis nativos para Linux AMD64 e Windows AMD64 e cria a página **Release** com todos esses artefatos. A tag deve ter a mesma versão de `pyproject.toml`; por exemplo, a versão `0.2.0` exige a tag `v0.2.0`.
+
+O fluxo de release usa Trusted Publishing do GitHub Actions, sem token permanente do PyPI. Antes do primeiro lançamento, configure no PyPI e no TestPyPI um publisher para este repositório, apontando para os workflows `release.yml` e `testpypi.yml`, e associe-os aos ambientes `pypi` e `testpypi` do GitHub.
+
+Para testar uma versão em isolamento, execute manualmente o workflow **TestPyPI** na aba Actions. Ele publica o pacote no TestPyPI e verifica `uv tool install`, `lingua --help` e `lingua doctor`.
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
 Depois, baixe o arquivo pela página de Releases do repositório ou com a GitHub CLI:
 
 ```bash
-gh release download v0.1.0 --pattern 'lingua-*'
+gh release download v0.2.0 --pattern 'lingua-*'
 ```
 
 No Linux, torne o binário executável se necessário e execute-o:

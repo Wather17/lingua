@@ -5,7 +5,7 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -21,14 +21,54 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
       - name: Require tag to match pyproject version
         shell: bash
         run: |
           VERSION=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml)
           test -n "$VERSION"
           test "v$VERSION" = "$GITHUB_REF_NAME"
+          uv lock --check
 
-  build:
+  build-python:
+    name: Build Python distributions
+    needs: validate-version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --extra dev --locked
+
+      - name: Run tests
+        run: uv run pytest
+
+      - name: Build Python distributions
+        run: uv build --no-sources
+
+      - name: Upload Python distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-distributions
+          path: dist/*
+          if-no-files-found: error
+
+  build-native:
     name: Build ${{ matrix.platform }}
     needs: validate-version
     strategy:
@@ -84,19 +124,48 @@ jobs:
           New-Item -ItemType Directory -Force -Path release
           Move-Item '${{ matrix.source }}' 'release/${{ matrix.asset }}'
 
-      - name: Upload release asset
+      - name: Upload native release asset
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}
           path: release/${{ matrix.asset }}
           if-no-files-found: error
 
-  publish:
-    name: Publish GitHub Release
-    needs: build
+  publish-pypi:
+    name: Publish Python distributions to PyPI
+    needs: build-python
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/lingua-kindle
+    permissions:
+      id-token: write
     steps:
-      - name: Download release assets
+      - name: Download Python distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+
+  publish-github-release:
+    name: Publish GitHub Release
+    needs: [build-native, publish-pypi]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Python distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: release
+
+      - name: Download native release assets
         uses: actions/download-artifact@v4
         with:
           path: release

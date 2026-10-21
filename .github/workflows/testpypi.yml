@@ -1,0 +1,74 @@
+name: TestPyPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag, or commit to publish"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish-and-verify:
+    name: Publish and verify TestPyPI package
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/lingua-kindle
+    permissions:
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --extra dev --locked
+
+      - name: Run tests
+        run: uv run pytest
+
+      - name: Read package version
+        id: metadata
+        shell: bash
+        run: |
+          VERSION=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml)
+          test -n "$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build Python distributions
+        run: uv build --no-sources
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          repository-url: https://test.pypi.org/legacy/
+
+      - name: Install package from TestPyPI
+        env:
+          VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          uv tool install --force \
+            --default-index https://test.pypi.org/simple \
+            --index https://pypi.org/simple \
+            "lingua-kindle==$VERSION"
+
+      - name: Verify installed CLI
+        run: |
+          lingua --help
+          lingua doctor entries.example.json --no-check-api
