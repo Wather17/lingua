@@ -142,6 +142,8 @@ Use `--workspace` em qualquer comando para guardar a configuração em outro dir
 
 ## Releases para Windows e Linux
 
+O procedimento completo está em [docs/release.md](docs/release.md).
+
 Ao enviar uma tag no formato `vX.Y.Z`, o GitHub Actions testa o projeto, publica o pacote `lingua-kindle` no PyPI, gera executáveis nativos para Linux AMD64 e Windows AMD64 e cria a página **Release** com todos esses artefatos. A tag deve ter a mesma versão de `pyproject.toml`; por exemplo, a versão `0.2.0` exige a tag `v0.2.0`.
 
 O fluxo de release usa Trusted Publishing do GitHub Actions, sem token permanente do PyPI. Antes do primeiro lançamento, configure no PyPI e no TestPyPI um publisher para este repositório, apontando para os workflows `release.yml` e `testpypi.yml`, e associe-os aos ambientes `pypi` e `testpypi` do GitHub.
