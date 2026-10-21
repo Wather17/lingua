@@ -21,6 +21,7 @@ class Config:
     base_url: str = "https://openrouter.ai/api/v1"
     data_collection: str = "deny"
     batch_size: int = 8
+    daily_limit: int = 5
 
 
 def config_path(workspace: Path) -> Path:
@@ -38,6 +39,8 @@ def load_config(workspace: Path) -> Config:
         raise ValueError("data_collection deve ser 'allow' ou 'deny'")
     if config.batch_size < 1 or config.batch_size > 25:
         raise ValueError("batch_size deve estar entre 1 e 25")
+    if config.daily_limit < 0:
+        raise ValueError("daily_limit não pode ser negativo")
     return config
 
 
@@ -52,6 +55,7 @@ def save_config(workspace: Path, config: Config) -> Path:
         f"base_url = {_quote(config.base_url)}\n"
         f"data_collection = {_quote(config.data_collection)}\n"
         f"batch_size = {config.batch_size}\n"
+        f"daily_limit = {config.daily_limit}\n"
     )
     path = config_path(workspace)
     temporary = path.with_suffix(".toml.tmp")

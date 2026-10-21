@@ -14,13 +14,22 @@ def test_state_lifecycle(tmp_path) -> None:
     store.discover([clipping])
     assert clipping.fingerprint in store.untranslated([clipping.fingerprint])
     store.save_translations(
-        [TranslationItem(id=clipping.fingerprint, portuguese="Tradução", vocabulary=["craft — ofício"], grammar="")],
+        [
+            TranslationItem(
+                id=clipping.fingerprint,
+                corrected_english=clipping.text,
+                portuguese="Tradução",
+                vocabulary=["craft — ofício"],
+                grammar="",
+            )
+        ],
         "test/model",
         "v1",
     )
     row = store.rows([clipping.fingerprint])[0]
     assert row["status"] == "drafted"
     assert row["portuguese"] == "Tradução"
+    assert row["corrected_english"] == clipping.text
     store.mark_many([clipping.fingerprint], "exported")
     assert store.statuses([clipping.fingerprint])[clipping.fingerprint] == "exported"
 

@@ -85,5 +85,5 @@ h3 {
 1. Importe o TSV gerado em `exports/`. As diretivas do arquivo selecionam o deck, tipo de nota, separador e coluna de tags.
 2. Confirme que cada coluna foi associada ao campo de mesmo nome.
 3. No navegador de cartões, selecione as novas notas.
-4. No AwesomeTTS, use `English` como origem, `Audio` como destino e escolha uma voz `en-US`.
+4. No HyperTTS, use `English` como origem, `Audio` como destino e escolha uma voz `en-US`.
 5. Gere apenas para campos de áudio vazios, para não substituir arquivos existentes.

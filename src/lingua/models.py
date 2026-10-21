@@ -21,6 +21,8 @@ class Clipping:
     location: str
     text: str
     metadata: str
+    source: str = ""
+    entry_type: str = "kindle"
 
     @property
     def book_key(self) -> str:
@@ -29,6 +31,15 @@ class Clipping:
 
     @property
     def fingerprint(self) -> str:
+        if self.entry_type == "manual":
+            raw = "\0".join(
+                (
+                    self.entry_type,
+                    normalize_space(self.source).casefold(),
+                    normalize_space(self.text),
+                )
+            )
+            return sha256(raw.encode("utf-8")).hexdigest()
         raw = "\0".join(
             (
                 normalize_space(self.title).casefold(),
@@ -42,6 +53,7 @@ class Clipping:
 
 class TranslationItem(BaseModel):
     id: str
+    corrected_english: str = Field(min_length=1)
     portuguese: str = Field(min_length=1)
     vocabulary: list[str] = Field(default_factory=list, max_length=3)
     grammar: str = ""

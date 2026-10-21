@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import csv
-from datetime import datetime
+from datetime import date, datetime
 import json
 from pathlib import Path
 import random
 from typing import Callable, Sequence
 
-from .clippings import ParseResult, group_books, parse_file
+from .clippings import ParseResult, group_books, parse_input_file
 from .config import Config, save_config
 from .models import Clipping, TranslationUsage
 from .openrouter import OpenRouterClient, PROMPT_VERSION
@@ -21,7 +21,13 @@ def load_and_choose(
     book: str | None,
     choose: Callable[[list[tuple[str, str, str, int, int]]], str],
 ) -> tuple[ParseResult, list[Clipping]]:
-    result = parse_file(path)
+    result = parse_input_file(path)
+    if path.suffix.casefold() == ".json":
+        if book:
+            raise ValueError("--book só pode ser usado com um arquivo do Kindle")
+        if not result.clippings:
+            raise ValueError("o JSON não possui entradas")
+        return result, result.clippings
     books = group_books(result.clippings)
     if not books:
         raise ValueError("nenhum destaque reconhecido no arquivo")
@@ -48,25 +54,45 @@ def prepare(
     config: Config,
     output: Path,
     progress: Callable[[str], None] = lambda _: None,
+    limit: int | None = None,
 ) -> tuple[Path, list[TranslationUsage]]:
+    daily_limit = config.daily_limit if limit is None else limit
+    if daily_limit < 0:
+        raise ValueError("o limite diário não pode ser negativo")
     statuses = store.statuses([item.fingerprint for item in clippings])
     active = [
         item for item in clippings if statuses.get(item.fingerprint) not in {"exported", "rejected"}
     ]
     if not active:
-        raise ValueError("este livro não possui destaques novos")
+        raise ValueError("esta entrada não possui frases novas")
     store.discover(active)
-    untranslated = store.untranslated([item.fingerprint for item in active])
+    fingerprints = [item.fingerprint for item in active]
+    untranslated = store.untranslated(fingerprints)
+    translated = set(fingerprints) - untranslated
     pending = [item for item in active if item.fingerprint in untranslated]
+    quota_date = date.today().isoformat()
+    selected_ids = set(
+        store.reserve_for_day([item.fingerprint for item in pending], quota_date, daily_limit)
+    )
+    selected = [item for item in pending if item.fingerprint in selected_ids]
+    if pending and not selected and not translated:
+        raise ValueError(
+            f"limite diário atingido ({daily_limit} entradas); use --limit para alterar"
+        )
     usage: list[TranslationUsage] = []
     completed = 0
-    for batch in _batches(pending, config.batch_size):
-        progress(f"Traduzindo {completed + 1}-{completed + len(batch)} de {len(pending)}...")
-        translations, batch_usage = client.translate(batch, config.model)
-        store.save_translations(translations, config.model, PROMPT_VERSION)
+    for batch in _batches(selected, config.batch_size):
+        progress(f"Traduzindo {completed + 1}-{completed + len(batch)} de {len(selected)}...")
+        try:
+            translations, batch_usage = client.translate(batch, config.model)
+            store.save_translations(translations, config.model, PROMPT_VERSION)
+        except Exception:
+            store.release_quota(list(selected_ids), quota_date)
+            raise
         usage.append(batch_usage)
         completed += len(batch)
-    rows = store.rows([item.fingerprint for item in active])
+    available_ids = translated | selected_ids
+    rows = store.rows([item.fingerprint for item in active if item.fingerprint in available_ids])
     if any(not row["portuguese"] for row in rows):
         raise RuntimeError("há traduções pendentes; execute prepare novamente")
     return write_draft(rows, output), usage
@@ -107,6 +133,7 @@ def evaluate_models(
     for alias in aliases:
         fields.extend(
             [
+                f"{alias} Corrected English",
                 f"{alias} Portuguese",
                 f"{alias} Vocabulary",
                 f"{alias} Grammar",
@@ -127,6 +154,7 @@ def evaluate_models(
             }
             for alias in aliases:
                 item = results[alias][clipping.fingerprint]
+                row[f"{alias} Corrected English"] = item.corrected_english
                 row[f"{alias} Portuguese"] = item.portuguese
                 row[f"{alias} Vocabulary"] = "<br>".join(item.vocabulary)
                 row[f"{alias} Grammar"] = item.grammar

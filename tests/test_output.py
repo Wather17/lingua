@@ -21,6 +21,7 @@ def translated_store(tmp_path):
         [
             TranslationItem(
                 id=clipping.fingerprint,
+                corrected_english="Care about your craft.",
                 portuguese="Importe-se com seu ofício.",
                 vocabulary=["craft — ofício", "care about — importar-se com"],
                 grammar="Imperativo sem sujeito explícito.",
@@ -41,6 +42,7 @@ def test_draft_and_anki_export(tmp_path) -> None:
     text = output.read_text(encoding="utf-8")
     assert text.startswith("#separator:Tab\n#html:true\n")
     assert "#tags column:8" in text
+    assert "Care about your craft." in text
     assert "book::the-pragmatic-programmer" in text
     assert "craft — ofício<br>care about — importar-se com" in text
     assert store.statuses([clipping.fingerprint])[clipping.fingerprint] == "exported"

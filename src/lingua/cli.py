@@ -6,7 +6,7 @@ import os
 import typer
 from dotenv import load_dotenv
 
-from .clippings import group_books, parse_file
+from .clippings import group_books, parse_file, parse_input_file
 from .config import Config, load_config, save_config
 from .openrouter import OpenRouterClient, OpenRouterError
 from .output import default_named_path, export_anki
@@ -18,7 +18,7 @@ from .workflows import evaluate_models, load_and_choose, prepare as prepare_work
 # presentes no ambiente têm prioridade e nunca são sobrescritas.
 load_dotenv(Path.cwd() / ".env")
 
-app = typer.Typer(no_args_is_help=True, help="Kindle Clippings para Anki com tradução contextual.")
+app = typer.Typer(no_args_is_help=True, help="Frases estudadas para Anki com tradução contextual.")
 WORKSPACE_OPTION = typer.Option(Path(".lingua"), "--workspace", "-w", help="Diretório de estado do projeto.")
 
 
@@ -68,8 +68,11 @@ def doctor(
         StateStore(workspace)
         typer.echo(f"[OK] configuração: modelo {config.model}")
         if clippings:
-            result = parse_file(clippings)
-            typer.echo(f"[OK] clippings: {len(result.clippings)} destaques em {len(group_books(result.clippings))} livros")
+            result = parse_input_file(clippings)
+            if clippings.suffix.casefold() == ".json":
+                typer.echo(f"[OK] JSON: {len(result.clippings)} entradas")
+            else:
+                typer.echo(f"[OK] clippings: {len(result.clippings)} destaques em {len(group_books(result.clippings))} livros")
             if result.skipped:
                 typer.echo("  ignorados: " + ", ".join(f"{reason}={count}" for reason, count in result.skipped.items()))
         if check_api:
@@ -105,16 +108,20 @@ def prepare_command(
     clippings: Path = typer.Argument(..., exists=True, dir_okay=False),
     book: str | None = typer.Option(None, help="ID ou título exato do livro."),
     output: Path | None = typer.Option(None, "--output", "-o"),
+    limit: int | None = typer.Option(None, "--limit", min=0, help="Limite diário; 0 desativa o limite."),
     workspace: Path = WORKSPACE_OPTION,
 ) -> None:
-    """Traduz destaques novos e cria um rascunho revisável."""
+    """Processa entradas Kindle ou JSON e cria um rascunho revisável."""
     try:
         config = load_config(workspace)
         store = StateStore(workspace)
         _, selected = load_and_choose(clippings, store, book, _choose)
-        destination = output or default_named_path(Path("drafts"), selected[0].title, ".tsv")
+        label = selected[0].title or clippings.stem
+        destination = output or default_named_path(Path("drafts"), label, ".tsv")
         with _client(config) as client:
-            path, usage = prepare_workflow(selected, store, client, config, destination, typer.echo)
+            path, usage = prepare_workflow(
+                selected, store, client, config, destination, typer.echo, limit=limit
+            )
         cost = sum(item.cost for item in usage)
         tokens = sum(item.prompt_tokens + item.completion_tokens for item in usage)
         typer.echo(f"Rascunho criado: {path} ({tokens} tokens; custo reportado US$ {cost:.6f})")
@@ -143,7 +150,7 @@ def export_command(
 def evaluate_command(
     clippings: Path = typer.Argument(..., exists=True, dir_okay=False),
     book: str | None = typer.Option(None, help="ID ou título exato do livro."),
-    sample: int = typer.Option(12, min=1, max=50, help="Número de destaques na amostra."),
+    sample: int = typer.Option(12, min=1, max=50, help="Número de entradas na amostra."),
     output: Path | None = typer.Option(None, "--output", "-o"),
     workspace: Path = WORKSPACE_OPTION,
 ) -> None:

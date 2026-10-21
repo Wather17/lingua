@@ -1,6 +1,10 @@
 from pathlib import Path
 
-from lingua.clippings import group_books, parse_file, parse_text
+import json
+
+import pytest
+
+from lingua.clippings import group_books, parse_file, parse_input_file, parse_json_file, parse_text
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "clippings_mixed.txt"
@@ -44,3 +48,32 @@ def test_internal_bom_does_not_split_the_same_book() -> None:
     result = parse_text(content)
     assert len(group_books(result.clippings)) == 1
     assert result.clippings[1].title == "Book"
+
+
+def test_parses_manual_json_and_preserves_text(tmp_path) -> None:
+    path = tmp_path / "entries.json"
+    path.write_text(
+        json.dumps(
+            {
+                "entries": [
+                    {"text": "I couldnt quite put my finger on it.", "source": "reading"},
+                    {"text": "I couldnt quite put my finger on it.", "source": "reading"},
+                    {"text": "That was unexpected."},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    result = parse_input_file(path)
+    assert len(result.clippings) == 2
+    assert result.clippings[0].text == "I couldnt quite put my finger on it."
+    assert result.clippings[0].source == "reading"
+    assert result.clippings[0].entry_type == "manual"
+    assert result.clippings[1].source == ""
+
+
+def test_rejects_unknown_manual_json_properties(tmp_path) -> None:
+    path = tmp_path / "entries.json"
+    path.write_text(json.dumps({"entries": [{"text": "Hello.", "book": "x"}]}), encoding="utf-8")
+    with pytest.raises(ValueError, match="propriedades desconhecidas"):
+        parse_json_file(path)

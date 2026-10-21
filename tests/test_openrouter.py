@@ -19,6 +19,7 @@ def test_structured_translation_and_privacy_body() -> None:
             "translations": [
                 {
                     "id": CLIPPING.fingerprint,
+                    "corrected_english": "Hello world.",
                     "portuguese": "Olá, mundo.",
                     "vocabulary": ["hello — olá"],
                     "grammar": "",
@@ -37,6 +38,7 @@ def test_structured_translation_and_privacy_body() -> None:
     transport = httpx.MockTransport(handler)
     with OpenRouterClient("secret", "https://example.test/v1", transport=transport) as client:
         translations, usage = client.translate([CLIPPING], "test/model")
+    assert translations[0].corrected_english == "Hello world."
     assert translations[0].portuguese == "Olá, mundo."
     assert usage.model == "resolved/model"
     assert captured["provider"] == {"data_collection": "deny", "require_parameters": True}

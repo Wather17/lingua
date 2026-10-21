@@ -15,6 +15,20 @@ from .state import StateStore
 DRAFT_COLUMNS = [
     "Include",
     "English",
+    "TypedEnglish",
+    "Portuguese",
+    "Vocabulary",
+    "Grammar",
+    "Book",
+    "Author",
+    "Location",
+    "Source",
+    "CardID",
+    "Model",
+]
+LEGACY_DRAFT_COLUMNS = [
+    "Include",
+    "English",
     "Portuguese",
     "Vocabulary",
     "Grammar",
@@ -46,13 +60,15 @@ def write_draft(rows: list, output: Path) -> Path:
             writer.writerow(
                 {
                     "Include": "yes",
-                    "English": _single_line(row["english"]),
+                    "English": _single_line(row["corrected_english"] or row["english"]),
+                    "TypedEnglish": _single_line(row["english"]),
                     "Portuguese": _single_line(row["portuguese"] or ""),
                     "Vocabulary": _single_line(row["vocabulary"] or ""),
                     "Grammar": _single_line(row["grammar"] or ""),
                     "Book": _single_line(row["title"]),
                     "Author": _single_line(row["author"]),
                     "Location": _single_line(row["location"]),
+                    "Source": _single_line(row["source"] or ""),
                     "CardID": row["fingerprint"],
                     "Model": row["model"] or "",
                 }
@@ -64,9 +80,10 @@ def write_draft(rows: list, output: Path) -> Path:
 def export_anki(draft: Path, output: Path, config: Config, store: StateStore) -> tuple[int, int]:
     with draft.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
-        if reader.fieldnames != DRAFT_COLUMNS:
+        if reader.fieldnames != DRAFT_COLUMNS and reader.fieldnames != LEGACY_DRAFT_COLUMNS:
             raise ValueError("as colunas do rascunho foram alteradas ou estão fora de ordem")
         rows = list(reader)
+    legacy = reader.fieldnames == LEGACY_DRAFT_COLUMNS
     exported: list[str] = []
     rejected: list[str] = []
     cards: list[dict[str, str]] = []
@@ -86,8 +103,14 @@ def export_anki(draft: Path, output: Path, config: Config, store: StateStore) ->
             raise ValueError(f"Include deve ser yes/no na linha {line_number}")
         if not row["English"].strip() or not row["Portuguese"].strip():
             raise ValueError(f"English e Portuguese são obrigatórios na linha {line_number}")
-        tags = f"lingua kindle book::{slugify(row['Book'])}"
-        source_parts = [row["Book"], row["Author"], row["Location"]]
+        source = "" if legacy else row["Source"].strip()
+        if row["Book"].strip():
+            tags = f"lingua kindle book::{slugify(row['Book'])}"
+        elif source:
+            tags = f"lingua manual source::{slugify(source)}"
+        else:
+            tags = "lingua manual"
+        source_parts = [source, row["Book"], row["Author"], row["Location"]]
         cards.append(
             {
                 "CardID": card_id,

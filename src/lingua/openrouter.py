@@ -9,12 +9,14 @@ import httpx
 from .models import Clipping, TranslationResponse, TranslationUsage
 
 
-PROMPT_VERSION = "2026-09-01-v1"
+PROMPT_VERSION = "2026-10-21-v2"
 SYSTEM_PROMPT = """Você cria microaulas para um brasileiro que está aprendendo inglês americano.
-Para cada destaque:
-1. Traduza naturalmente para pt-BR, preservando tom, sentido e ambiguidades relevantes.
-2. Liste no máximo três palavras, phrasal verbs ou expressões realmente úteis, no formato "termo — explicação curta em português".
-3. Escreva uma observação gramatical curta apenas quando ela ensinar algo útil; caso contrário, use string vazia.
+Para cada frase:
+1. Preserve o texto recebido no campo de entrada; não o reescreva fora do campo de correção.
+2. Gere corrected_english corrigindo somente ortografia, pontuação e problemas gramaticais claros. Preserve o significado e as palavras originais sempre que possível. Se não houver correção necessária, repita exatamente a frase recebida.
+3. Traduza corrected_english naturalmente para pt-BR, preservando tom, sentido e ambiguidades relevantes.
+4. Liste no máximo três palavras, phrasal verbs ou expressões realmente úteis, no formato "termo — explicação curta em português".
+5. Escreva uma observação gramatical curta apenas quando ela ensinar algo útil; caso contrário, use string vazia.
 Não resuma, não censure, não acrescente fatos e não use Markdown. Mantenha exatamente os IDs recebidos."""
 
 
@@ -30,6 +32,7 @@ TRANSLATION_SCHEMA = {
                     "type": "object",
                     "properties": {
                         "id": {"type": "string"},
+                        "corrected_english": {"type": "string"},
                         "portuguese": {"type": "string"},
                         "vocabulary": {
                             "type": "array",
@@ -38,7 +41,7 @@ TRANSLATION_SCHEMA = {
                         },
                         "grammar": {"type": "string"},
                     },
-                    "required": ["id", "portuguese", "vocabulary", "grammar"],
+                    "required": ["id", "corrected_english", "portuguese", "vocabulary", "grammar"],
                     "additionalProperties": False,
                 },
             }

@@ -1,15 +1,17 @@
-# Lingua Kindle
+# Lingua
 
-Uma ferramenta de terminal que transforma os destaques do arquivo `My Clippings.txt` do Kindle em cartões enriquecidos para o Anki:
+Uma ferramenta de terminal que transforma frases estudadas no Kindle ou digitadas manualmente em cartões enriquecidos para o Anki:
 
 - frase original em inglês;
 - tradução natural para pt-BR;
 - até três itens de vocabulário;
 - uma observação gramatical curta quando for útil;
 - título, autor e posição do destaque;
-- campo vazio para áudio gerado pelo AwesomeTTS.
+- campo vazio para áudio gerado pelo HyperTTS.
 
-Os destaques são enviados ao OpenRouter em pequenos lotes. O arquivo inteiro do livro nunca é enviado, e as requisições usam `data_collection: "deny"` por padrão.
+Para entradas manuais, a frase digitada é preservada no rascunho e o modelo gera uma versão corrigida para o campo `English` exportado ao Anki. O áudio continua sendo gerado externamente pelo HyperTTS.
+
+As entradas são enviadas ao OpenRouter em pequenos lotes. O arquivo inteiro do livro nunca é enviado, e as requisições usam `data_collection: "deny"` por padrão.
 
 ## Instalação
 
@@ -52,13 +54,33 @@ Liste os livros reconhecidos:
 lingua books "/caminho/para/My Clippings.txt"
 ```
 
-Prepare somente os destaques ainda não exportados. Sem `--book`, a CLI mostra um menu:
+Prepare somente as entradas ainda não exportadas. Para Kindle, sem `--book`, a CLI mostra um menu:
 
 ```bash
 lingua prepare "/caminho/para/My Clippings.txt"
 ```
 
-Abra o TSV criado em `drafts/` no LibreOffice, Excel ou editor de texto. Você pode corrigir qualquer campo e definir `Include` como `no` para descartar um cartão. Preserve os nomes e a ordem das colunas.
+Para praticar a escrita, copie o modelo [entries.example.json](entries.example.json) para `entries.json` (que fica ignorado pelo Git) e use-o como um JSON append-only. Digite as frases sem consultar o original quando possível:
+
+```json
+{
+  "entries": [
+    {"text": "I couldnt quite put my finger on what was wrong."},
+    {"text": "That was unexpected.", "source": "leitura"}
+  ]
+}
+```
+
+Processe o arquivo com o mesmo comando:
+
+```bash
+cp entries.example.json entries.json
+lingua prepare entries.json
+```
+
+O limite padrão é de cinco entradas novas por dia, compartilhado entre Kindle e JSON. Para alterar o limite de uma execução, use `--limit N`; `--limit 0` desativa o limite explicitamente.
+
+Abra o TSV criado em `drafts/` no LibreOffice, Excel ou editor de texto. O rascunho contém `TypedEnglish`, com o texto original digitado, e `English`, com a versão corrigida. Revise os campos e marque `Include` como `no` para descartar um cartão. Preserve os nomes e a ordem das colunas.
 
 Depois exporte:
 
@@ -84,7 +106,7 @@ lingua select-model "evaluations/relatorio.tsv"
 
 O vencedor é definido pela maior média; em caso de empate, ganha o candidato de menor custo reportado. O modelo escolhido é salvo em `.lingua/config.toml`. A opção `model` também aceita um preset do workspace, como `@preset/lingua-translation`.
 
-## Anki e AwesomeTTS
+## Anki e HyperTTS
 
 Antes da primeira importação, crie o tipo de nota descrito em [anki/NOTE_TYPE.md](anki/NOTE_TYPE.md). Depois importe o TSV e gere os áudios em lote usando:
 
@@ -98,11 +120,11 @@ O primeiro campo, `CardID`, é estável. Ao reimportar uma nota já existente, o
 
 ```text
 lingua init                       Inicializa configuração e banco
-lingua doctor [CLIPPINGS]         Diagnostica arquivo, configuração e API
+lingua doctor [INPUT]             Diagnostica Kindle ou JSON, configuração e API
 lingua books CLIPPINGS            Lista livros e destaques novos
-lingua prepare CLIPPINGS          Traduz e cria rascunho
+lingua prepare INPUT              Processa Kindle ou JSON e cria rascunho
 lingua export DRAFT               Cria TSV final do Anki
-lingua evaluate CLIPPINGS         Compara modelos às cegas
+lingua evaluate INPUT             Compara modelos às cegas
 lingua select-model REPORT        Salva o modelo vencedor
 ```
 
