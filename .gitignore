@@ -12,8 +12,6 @@ build/
 drafts/
 exports/
 evaluations/
-My Clippings.txt
-My Clippings*.txt
 entries.json
 # AI agent configuration files
 .agent-init.json
