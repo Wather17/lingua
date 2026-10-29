@@ -1,4 +1,4 @@
-name: CI
+name: Documentation contract
 
 on:
   push:
@@ -10,64 +10,26 @@ permissions:
   contents: read
 
 jobs:
-  test-and-package:
-    name: Test and package (${{ matrix.platform }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            platform: linux-amd64
-            executable: ./dist/lingua
-            artifact: dist/lingua
-          - os: windows-latest
-            platform: windows-amd64
-            executable: .\\dist\\lingua.exe
-            artifact: dist/lingua.exe
-    runs-on: ${{ matrix.os }}
-
+  validate-contract:
+    name: Validate JSON and TSV contract
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+      - name: Validate JSON example
+        run: python3 -m json.tool entries.example.json >/dev/null
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
+      - name: Validate two-column TSV example
+        run: |
+          awk -F '\t' 'NF != 2 || $1 == "" || $2 == "" { bad=1 } END { exit (NR == 0 || bad) }' docs/example-output.tsv
 
-      - name: Verify lockfile
-        run: uv lock --check
+      - name: Reject obsolete runtime references
+        run: |
+          if git grep -n -E 'OPENROUTER|OpenRouter|openrouter|CardID|Vocabulary|Grammar|Audio|select-model|evaluate|My Clippings' -- README.md docs anki entries.example.json; then
+            echo 'Encontrada referência funcional ao fluxo antigo.' >&2
+            exit 1
+          fi
 
-      - name: Install dependencies
-        run: uv sync --extra dev --locked
-
-      - name: Run tests
-        run: uv run pytest
-
-      - name: Build Python distributions
-        run: uv build
-
-      - name: Build native executable
-        run: uv run pyinstaller --clean --noconfirm --onefile --name lingua scripts/lingua_entry.py
-
-      - name: Verify executable (Linux)
-        if: runner.os == 'Linux'
-        run: ${{ matrix.executable }} --help
-
-      - name: Verify executable (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: ${{ matrix.executable }} --help
-
-      - name: Upload executable for inspection
-        uses: actions/upload-artifact@v4
-        with:
-          name: lingua-${{ matrix.platform }}-ci
-          path: ${{ matrix.artifact }}
-          if-no-files-found: error
-          retention-days: 7
+      - name: Check whitespace
+        run: git diff --check

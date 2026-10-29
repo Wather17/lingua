@@ -1,11 +1,12 @@
 {
   "entries": [
     {
-      "text": "I couldnt quite put my finger on what was wrong."
+      "text": "I couldnt quite put my finger on what was wrong.",
+      "source": "The Pragmatic Programmer — capítulo 1"
     },
     {
       "text": "That was unexpected.",
-      "source": "leitura"
+      "source": "anotações de leitura"
     }
   ]
 }
